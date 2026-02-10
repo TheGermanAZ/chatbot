@@ -1,8 +1,28 @@
 import "./App.css";
 
 import { useState } from "react";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputSubmit,
+} from "@/components/ai-elements/prompt-input";
+import { InputGroupAddon } from "@/components/ui/input-group";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { BotIcon } from "lucide-react";
 
-type Message = {
+type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
@@ -10,69 +30,86 @@ type Message = {
 const chatId = crypto.randomUUID();
 
 function App() {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
-  async function sendMessage() {
-    if (!input.trim()) {
-      console.log("missing chat field");
-      return;
-    }
+  async function sendMessage(text: string) {
+    if (!text.trim()) return;
+
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
 
     try {
       const response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: chatId, chat: input }),
+        body: JSON.stringify({ id: chatId, chat: text }),
       });
-
-      const data = await response.text();
 
       if (!response.ok) {
         console.log("invalid response");
         return;
       }
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: input },
-        { role: "assistant", content: data },
-      ]);
-      setInput("");
-      setLoading(false);
+      const data = await response.text();
+      setMessages((prev) => [...prev, { role: "assistant", content: data }]);
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="chat">
-      <div className="messages">
-        {messages.map((msg, i) => (
-          <div key={i} className={`message ${msg.role}`}>
-            <strong>{msg.role === "user" ? "You" : "Claude"}</strong>
-            <p>{msg.content}</p>
-          </div>
-        ))}
+    <TooltipProvider>
+      <div className="flex h-screen flex-col max-w-2xl mx-auto">
+        <Conversation className="flex-1">
+          <ConversationContent>
+            {messages.length === 0 ? (
+              <ConversationEmptyState
+                icon={<BotIcon className="size-8" />}
+                title="Chat with Claude"
+                description="Ask me anything to get started"
+              />
+            ) : (
+              messages.map((msg, i) => (
+                <Message key={i} from={msg.role}>
+                  <MessageContent>
+                    {msg.role === "assistant" ? (
+                      <MessageResponse>{msg.content}</MessageResponse>
+                    ) : (
+                      msg.content
+                    )}
+                  </MessageContent>
+                </Message>
+              ))
+            )}
+            {loading && (
+              <Message from="assistant">
+                <MessageContent>
+                  <Shimmer>Thinking...</Shimmer>
+                </MessageContent>
+              </Message>
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+
+        <div className="p-4">
+          <PromptInput
+            onSubmit={({ text }) => sendMessage(text)}
+          >
+            <PromptInputTextarea disabled={loading} />
+            <InputGroupAddon align="inline-end">
+              <PromptInputSubmit
+                status={loading ? "submitted" : "ready"}
+                disabled={loading}
+              />
+            </InputGroupAddon>
+          </PromptInput>
+        </div>
       </div>
-      <div className="input-area">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-          rows={3}
-        />
-        <button
-          onClick={sendMessage}
-          onKeyDown={sendMessage}
-          disabled={loading}
-        >
-          Send
-        </button>
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
