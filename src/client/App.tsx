@@ -2,33 +2,76 @@ import "./App.css";
 
 import { useState } from "react";
 
-import reactLogo from "./assets/react.svg";
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const chatId = crypto.randomUUID();
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function sendMessage() {
+    if (!input.trim()) {
+      console.log("missing chat field");
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: chatId, chat: input }),
+      });
+
+      const data = await response.text();
+
+      if (!response.ok) {
+        console.log("invalid response");
+        return;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: input },
+        { role: "assistant", content: data },
+      ]);
+      setInput("");
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   return (
-    <div className="App">
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="chat">
+      <div className="messages">
+        {messages.map((msg, i) => (
+          <div key={i} className={`message ${msg.role}`}>
+            <strong>{msg.role === "user" ? "You" : "Claude"}</strong>
+            <p>{msg.content}</p>
+          </div>
+        ))}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+      <div className="input-area">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          rows={3}
+        />
+        <button
+          onClick={sendMessage}
+          onKeyDown={sendMessage}
+          disabled={loading}
+        >
+          Send
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </div>
   );
 }
