@@ -1,6 +1,3 @@
-import "./App.css";
-
-import { useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -14,26 +11,53 @@ import {
 } from "@/components/ai-elements/message";
 import {
   PromptInput,
-  PromptInputTextarea,
   PromptInputSubmit,
+  PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
-import { InputGroupAddon } from "@/components/ui/input-group";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { InputGroupAddon } from "@/components/ui/input-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Anthropic from "@anthropic-ai/sdk";
 import { BotIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useOutletContext, useParams } from "react-router";
 
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+type ChatMessage = { role: "user" | "assistant"; content: string };
+type LayoutContext = { refreshChatList: () => Promise<void> };
 
-const chatId = crypto.randomUUID();
+export default function ChatView() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { refreshChatList } = useOutletContext<LayoutContext>();
 
-function App() {
+  const generatedId = useRef(crypto.randomUUID());
+  const chatId = id ?? generatedId.current;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
-  async function sendMessage(text: string) {
+  useEffect(() => {
+    if (!id) return;
+
+    const getChat = async () => {
+      const response = await fetch(`/chat/${id}`);
+
+      if (!response.ok) {
+        console.error("error fetching chat with id:", id);
+      }
+
+      const data = await response.json();
+
+      setMessages(
+        data.map((m: Anthropic.Messages.MessageParam) => ({
+          role: m.role,
+          content: typeof m.content === "string" ? m.content : "",
+        })),
+      );
+    };
+    getChat();
+  }, [id]);
+
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -53,16 +77,19 @@ function App() {
 
       const data = await response.text();
       setMessages((prev) => [...prev, { role: "assistant", content: data }]);
+      if (!id) {
+        await refreshChatList();
+        navigate(`/chat/${chatId}`, { replace: true });
+      }
     } catch (error) {
       console.log(error);
     } finally {
       setLoading(false);
     }
-  }
-
+  };
   return (
     <TooltipProvider>
-      <div className="flex h-screen flex-col max-w-2xl mx-auto">
+      <div className="flex h-full flex-col max-w-2xl mx-auto w-full">
         <Conversation className="flex-1">
           <ConversationContent>
             {messages.length === 0 ? (
@@ -92,13 +119,11 @@ function App() {
               </Message>
             )}
           </ConversationContent>
-          <ConversationScrollButton />
+          <ConversationScrollButton variant="default" />
         </Conversation>
 
         <div className="p-4">
-          <PromptInput
-            onSubmit={({ text }) => sendMessage(text)}
-          >
+          <PromptInput onSubmit={({ text }) => sendMessage(text)}>
             <PromptInputTextarea disabled={loading} />
             <InputGroupAddon align="inline-end">
               <PromptInputSubmit
@@ -112,5 +137,3 @@ function App() {
     </TooltipProvider>
   );
 }
-
-export default App;

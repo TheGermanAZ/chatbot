@@ -1,6 +1,7 @@
 import express from "express";
 import ViteExpress from "vite-express";
 import Anthropic from "@anthropic-ai/sdk";
+import { error } from "console";
 
 const app = express();
 const client = new Anthropic({});
@@ -41,6 +42,25 @@ app.post("/chat", async (req, res) => {
     console.log(error);
     res.status(500).send("failed to get response from claude");
   }
+});
+
+app.get("/chats", (_req, res) => {
+  let chats: { id: string; title: string }[] = [];
+  for (const [id, messages] of history) {
+    const first = messages.find((message) => message.role === "user");
+    const title =
+      typeof first?.content === "string"
+        ? first.content.slice(0, 100)
+        : "New Chat";
+    chats = [...chats, { id, title }];
+  }
+  res.json(chats);
+});
+
+app.get("/chat/:id", (req, res) => {
+  const messages = history.get(req.params.id);
+  if (!messages) return res.status(400).json({ error: "chat not found" });
+  res.json(messages);
 });
 
 ViteExpress.listen(app, 3000, () =>
