@@ -1,12 +1,12 @@
 import express from "express";
 import ViteExpress from "vite-express";
 import Anthropic from "@anthropic-ai/sdk";
-import { error } from "console";
+import { InMemoryStorage } from "./storage";
 
 const app = express();
 const client = new Anthropic({});
 
-const history = new Map<string, Anthropic.MessageParam[]>();
+const history = new InMemoryStorage();
 
 app.use(express.json());
 
@@ -14,26 +14,23 @@ app.post("/chat", async (req, res) => {
   const { id, chat } = req.body;
   if (!chat) return res.status(400).send("missing chat field");
 
-  const messages = history.get(id) ?? [];
-
   // Add the new user message to history
-  const withUser = [...messages, { role: "user" as const, content: chat }];
-  history.set(id, withUser);
+  history.addMessageToConversation(id, { role: "user", content: chat });
+  const messages = history.getConversation(id) ?? [];
 
   try {
     const message = await client.messages.create({
       max_tokens: 1024,
-      messages: withUser,
+      messages: messages,
       model: "claude-haiku-4-5-20251001",
     });
 
     const block = message.content[0];
     if (block.type === "text") {
-      const withAssistant = [
-        ...withUser,
-        { role: "assistant" as const, content: block.text },
-      ];
-      history.set(id, withAssistant);
+      history.addMessageToConversation(id, {
+        role: "assistant",
+        content: block.text,
+      });
       res.send(block.text);
     } else {
       res.status(500).send("unexpected response format");
@@ -45,20 +42,11 @@ app.post("/chat", async (req, res) => {
 });
 
 app.get("/chats", (_req, res) => {
-  let chats: { id: string; title: string }[] = [];
-  for (const [id, messages] of history) {
-    const first = messages.find((message) => message.role === "user");
-    const title =
-      typeof first?.content === "string"
-        ? first.content.slice(0, 100)
-        : "New Chat";
-    chats = [...chats, { id, title }];
-  }
-  res.json(chats);
+  res.json(history.getConversations());
 });
 
 app.get("/chat/:id", (req, res) => {
-  const messages = history.get(req.params.id);
+  const messages = history.getConversation(req.params.id);
   if (!messages) return res.status(400).json({ error: "chat not found" });
   res.json(messages);
 });
