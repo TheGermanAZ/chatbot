@@ -2,11 +2,15 @@ import express from "express";
 import ViteExpress from "vite-express";
 import Anthropic from "@anthropic-ai/sdk";
 import { PostgresStorage } from "./storage";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "../lib/auth";
 
 const app = express();
 const client = new Anthropic({});
 
 const history = new PostgresStorage();
+
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
 
@@ -15,7 +19,7 @@ app.post("/chat", async (req, res) => {
   if (!chat) return res.status(400).send("missing chat field");
 
   // Create a new conversation if no id provided
-  const conversationId = id ?? (await history.createConversation());
+  const conversationId = id ?? (await history.createConversation(chat));
 
   await history.addMessageToConversation(conversationId, {
     role: "user",

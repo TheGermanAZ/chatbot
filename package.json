@@ -8,6 +8,7 @@
     "start": "NODE_ENV=production bun src/server/main.ts",
     "build": "vite build",
     "db:push": "bunx drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
     "db:reset": "bun scripts/db-reset.ts"
   },
   "dependencies": {
