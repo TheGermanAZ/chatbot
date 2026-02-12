@@ -1,12 +1,12 @@
 import express from "express";
 import ViteExpress from "vite-express";
 import Anthropic from "@anthropic-ai/sdk";
-import { InMemoryStorage } from "./storage";
+import { SqlliteStorage } from "./storage";
 
 const app = express();
 const client = new Anthropic({});
 
-const history = new InMemoryStorage();
+const history = new SqlliteStorage();
 
 app.use(express.json());
 
@@ -15,8 +15,8 @@ app.post("/chat", async (req, res) => {
   if (!chat) return res.status(400).send("missing chat field");
 
   // Add the new user message to history
-  history.addMessageToConversation(id, { role: "user", content: chat });
-  const messages = history.getConversation(id) ?? [];
+  history.addMessageToConversation(String(id), { role: "user", content: chat });
+  const messages = history.getConversation(Number(id)) ?? [];
 
   try {
     const message = await client.messages.create({
@@ -27,7 +27,7 @@ app.post("/chat", async (req, res) => {
 
     const block = message.content[0];
     if (block.type === "text") {
-      history.addMessageToConversation(id, {
+      history.addMessageToConversation(String(id), {
         role: "assistant",
         content: block.text,
       });
@@ -46,7 +46,7 @@ app.get("/chats", (_req, res) => {
 });
 
 app.get("/chat/:id", (req, res) => {
-  const messages = history.getConversation(req.params.id);
+  const messages = history.getConversation(Number(req.params.id));
   if (!messages) return res.status(400).json({ error: "chat not found" });
   res.json(messages);
 });
