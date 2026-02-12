@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { db } from ".";
+import { db } from "./db";
 import { conversations, messages } from "./db/schema";
 import { eq } from "drizzle-orm";
 
 interface ChatStorage {
-  createConversation(): Promise<string>;
+  createConversation(title: string): Promise<string>;
   getConversation(id: string): Promise<Anthropic.MessageParam[]>;
   getConversations(): Promise<{ id: string; title: string }[]>;
   addMessageToConversation(
@@ -14,10 +14,11 @@ interface ChatStorage {
 }
 
 export class PostgresStorage implements ChatStorage {
-  async createConversation(): Promise<string> {
+  async createConversation(title: string): Promise<string> {
+    const short = title.slice(0, 50) + (title.length > 50 ? "..." : "");
     const result = await db
       .insert(conversations)
-      .values({ title: "New Chat" })
+      .values({ title: short })
       .returning({ id: conversations.id });
     return result[0].id;
   }

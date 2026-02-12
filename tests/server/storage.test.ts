@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryStorage } from "../../src/server/storage";
+import { PostgresStorage } from "../../src/server/storage";
 
 describe("InMemoryStorage", () => {
   it("creates a conversation and returns a unique id", () => {
-    const storage = new InMemoryStorage();
+    const storage = new PostgresStorage();
     const id = storage.createConversation();
     const id2 = storage.createConversation();
     expect(id).toBeDefined();
@@ -12,7 +12,7 @@ describe("InMemoryStorage", () => {
   });
 
   it("get conversation returns empty array for new conversation", () => {
-    const storage = new InMemoryStorage();
+    const storage = new PostgresStorage();
     const id = storage.createConversation();
     expect(storage.getConversation(id)).toEqual([]);
   });
