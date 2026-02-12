@@ -1,63 +1,58 @@
-/// <reference types="bun-types" />
 import Anthropic from "@anthropic-ai/sdk";
-import { MessageParam } from "@anthropic-ai/sdk/resources";
-import { Database } from "bun:sqlite";
+import { db } from ".";
+import { conversations, messages } from "./db/schema";
+import { eq } from "drizzle-orm";
 
-const db = new Database();
-db.run("PRAGMA journal_mode = WAL;");
-
-const conversations = db.query(
-  "create table if not exists conversations (id integer primary key autoincrement, title text not null)",
-);
-const messages = db.query(
-  "create table if not exists messages(id integer primary key autoincrement, conversationId integer references conversations(id), role text not null, content text not null)",
-);
-
-conversations.run();
-messages.run();
-interface chatStorage {
-  createConversation(): number | bigint;
-  getConversation(id: number | bigint): Anthropic.MessageParam[];
-  getConversations(): { id: string; title: string }[];
-  addMessageToConversation(id: string, message: Anthropic.MessageParam): void;
+interface ChatStorage {
+  createConversation(): Promise<string>;
+  getConversation(id: string): Promise<Anthropic.MessageParam[]>;
+  getConversations(): Promise<{ id: string; title: string }[]>;
+  addMessageToConversation(
+    id: string,
+    message: Anthropic.MessageParam,
+  ): Promise<void>;
 }
 
-export class SqlliteStorage implements chatStorage {
-  private history = new Map<string, Anthropic.MessageParam[]>();
-
-  createConversation(): number | bigint {
-    const firstConversation = db.query(
-      "insert into conversations (title) values ('new chat')",
-    );
-    const id = firstConversation.run();
-    return id.lastInsertRowid;
+export class PostgresStorage implements ChatStorage {
+  async createConversation(): Promise<string> {
+    const result = await db
+      .insert(conversations)
+      .values({ title: "New Chat" })
+      .returning({ id: conversations.id });
+    return result[0].id;
   }
 
-  getConversation(id: number | bigint): Anthropic.MessageParam[] {
-    const getId = db
-      .query(`select role, content from messages where conversationId = ?`)
-      .all(id) as MessageParam[];
+  async getConversation(id: string): Promise<Anthropic.MessageParam[]> {
+    const result = await db
+      .select({ role: messages.role, content: messages.content })
+      .from(messages)
+      .where(eq(messages.conversationId, id));
 
-    return getId;
+    return result.map((row) => ({
+      role: row.role as "user" | "assistant",
+      content: row.content,
+    }));
   }
 
-  getConversations(): { id: string; title: string }[] {
-    const rows = db
-      .query<
-        { id: number; title: string },
-        []
-      >("select id, title from conversations")
-      .all();
-    return rows.map((row) => ({ id: String(row.id), title: row.title }));
+  async getConversations(): Promise<{ id: string; title: string }[]> {
+    const result = await db
+      .select({ id: conversations.id, title: conversations.title })
+      .from(conversations);
+
+    return result;
   }
 
-  addMessageToConversation(id: string, message: Anthropic.MessageParam): void {
+  async addMessageToConversation(
+    id: string,
+    message: Anthropic.MessageParam,
+  ): Promise<void> {
     const content =
       typeof message.content === "string"
         ? message.content
         : JSON.stringify(message.content);
-    db.query(
-      "insert into messages (conversationId, role, content) values (?, ?, ?)",
-    ).run(Number(id), message.role, content);
+
+    await db
+      .insert(messages)
+      .values({ conversationId: id, role: message.role, content });
   }
 }

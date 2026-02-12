@@ -19,7 +19,7 @@ import { InputGroupAddon } from "@/components/ui/input-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Anthropic from "@anthropic-ai/sdk";
 import { BotIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -30,8 +30,7 @@ export default function ChatView() {
   const navigate = useNavigate();
   const { refreshChatList } = useOutletContext<LayoutContext>();
 
-  const generatedId = useRef(crypto.randomUUID());
-  const chatId = id ?? generatedId.current;
+  const [chatId, setChatId] = useState<string | undefined>(id);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -75,11 +74,12 @@ export default function ChatView() {
         return;
       }
 
-      const data = await response.text();
-      setMessages((prev) => [...prev, { role: "assistant", content: data }]);
-      if (!id) {
+      const data = await response.json();
+      setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
+      if (!chatId) {
+        setChatId(data.id);
         await refreshChatList();
-        navigate(`/chat/${chatId}`, { replace: true });
+        navigate(`/chat/${data.id}`, { replace: true });
       }
     } catch (error) {
       console.log(error);
