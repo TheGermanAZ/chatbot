@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/server/main.ts",
+    "dev": "bun --watch --watch-path=src/server src/server/main.ts",
     "start": "NODE_ENV=production bun src/server/main.ts",
     "build": "vite build",
     "db:push": "bunx drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:studio": "bunx drizzle-kit studio",
     "db:reset": "bun scripts/db-reset.ts"
   },
   "dependencies": {

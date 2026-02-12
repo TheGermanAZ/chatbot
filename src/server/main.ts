@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import ViteExpress from "vite-express";
 import Anthropic from "@anthropic-ai/sdk";
 import { PostgresStorage } from "./storage";
@@ -12,20 +12,30 @@ const history = new PostgresStorage();
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
+const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+  const session = await auth.api.getSession({
+    headers: new Headers(req.headers as Record<string, string>),
+  });
+  if (!session) return res.status(401).json({ error: "unauthorized" });
+  res.locals.user = session.user;
+  next();
+};
+
 app.use(express.json());
 
-app.post("/chat", async (req, res) => {
+app.post("/chat", requireAuth, async (req, res) => {
   const { id, chat } = req.body;
   if (!chat) return res.status(400).send("missing chat field");
 
   // Create a new conversation if no id provided
-  const conversationId = id ?? (await history.createConversation(chat));
+  const userId = res.locals.user.id;
+  const conversationId = id ?? (await history.createConversation(chat, userId));
 
-  await history.addMessageToConversation(conversationId, {
+  await history.addMessageToConversation(conversationId, userId, {
     role: "user",
     content: chat,
   });
-  const messages = await history.getConversation(conversationId);
+  const messages = await history.getConversation(conversationId, userId);
 
   try {
     const message = await client.messages.create({
@@ -36,7 +46,7 @@ app.post("/chat", async (req, res) => {
 
     const block = message.content[0];
     if (block.type === "text") {
-      await history.addMessageToConversation(conversationId, {
+      await history.addMessageToConversation(conversationId, userId, {
         role: "assistant",
         content: block.text,
       });
@@ -50,12 +60,15 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-app.get("/chats", async (_req, res) => {
-  res.json(await history.getConversations());
+app.get("/chats", requireAuth, async (_req, res) => {
+  const userId = res.locals.user.id;
+  res.json(await history.getConversations(userId));
 });
 
-app.get("/chat/:id", async (req, res) => {
-  const messages = await history.getConversation(req.params.id);
+app.get("/chat/:id", requireAuth, async (req, res) => {
+  const userId = res.locals.user.id;
+  const chatId = req.params.id as string;
+  const messages = await history.getConversation(chatId, userId);
   if (!messages.length)
     return res.status(400).json({ error: "chat not found" });
   res.json(messages);

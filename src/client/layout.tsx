@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { MessageSquarePlusIcon } from "lucide-react";
+import { LogOutIcon, MessageSquarePlusIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
+import { authClient } from "@/lib/auth-client";
 
 type ChatSummary = { id: string; title: string };
 
@@ -35,7 +36,11 @@ export default function Layout() {
         >
           <div className="flex items-center justify-between p-4">
             <h2 className="text-sm font-semibold">Chats</h2>
-            <Button variant="default" size="icon" onClick={() => navigate("/")}>
+            <Button
+              variant="default"
+              size="icon"
+              onClick={() => navigate("/new")}
+            >
               <MessageSquarePlusIcon className="size-4 " />
             </Button>
           </div>
@@ -59,6 +64,20 @@ export default function Layout() {
               ))}
             </div>
           </ScrollArea>
+          <Separator />
+          <div className="p-4">
+            <Button
+              variant="default"
+              className="w-full justify-start gap-2"
+              onClick={async () => {
+                await authClient.signOut();
+                navigate("/");
+              }}
+            >
+              <LogOutIcon className="size-4" />
+              Sign out
+            </Button>
+          </div>
         </aside>
 
         {/* Main content - child route renders here */}

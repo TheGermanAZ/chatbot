@@ -12,12 +12,4 @@ export type {
   InsertConversation,
   SelectMessage,
   InsertMessage,
-  SelectUser,
-  InsertUser,
-  SelectSession,
-  InsertSession,
-  SelectAccount,
-  InsertAccount,
-  SelectVerification,
-  InsertVerification,
 } from "../../../drizzle/schema";
