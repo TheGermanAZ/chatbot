@@ -9,7 +9,8 @@
     "build": "vite build",
     "db:push": "bunx drizzle-kit push",
     "db:studio": "bunx drizzle-kit studio",
-    "db:reset": "bun scripts/db-reset.ts"
+    "db:reset": "bun scripts/db-reset.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
