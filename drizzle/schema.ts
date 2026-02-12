@@ -11,6 +11,9 @@ import {
 
 export const conversations = pgTable("conversations", {
   id: uuid().defaultRandom().primaryKey(),
+  userId: text()
+    .notNull()
+    .references(() => user.id),
   title: varchar().notNull(),
 });
 
@@ -19,7 +22,6 @@ export const messages = pgTable("messages", {
   conversationId: uuid().references(() => conversations.id),
   role: varchar().notNull(),
   content: varchar().notNull(),
-  random: varchar(),
 });
 
 export const user = pgTable("user", {
@@ -101,16 +103,3 @@ export type InsertConversation = InferInsertModel<typeof conversations>;
 // Message types
 export type SelectMessage = InferSelectModel<typeof messages>;
 export type InsertMessage = InferInsertModel<typeof messages>;
-
-// Auth types
-export type SelectUser = InferSelectModel<typeof user>;
-export type InsertUser = InferInsertModel<typeof user>;
-
-export type SelectSession = InferSelectModel<typeof session>;
-export type InsertSession = InferInsertModel<typeof session>;
-
-export type SelectAccount = InferSelectModel<typeof account>;
-export type InsertAccount = InferInsertModel<typeof account>;
-
-export type SelectVerification = InferSelectModel<typeof verification>;
-export type InsertVerification = InferInsertModel<typeof verification>;
