@@ -16,6 +16,8 @@ const client = new Anthropic({});
 // rename to chatStorage and PostgresChatStorage
 const history = new PostgresStorage();
 
+export const port = Number(process.env.PORT) || 3000;
+
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -209,6 +211,6 @@ app.post("/rllm", requireAuth, async (req, res) => {
   res.end();
 });
 
-ViteExpress.listen(app, 3000, () =>
-  console.log("Server is listening on port 3000..."),
+ViteExpress.listen(app, port, () =>
+  console.log(`Server is listening on port ${port}...`),
 );
