@@ -8,13 +8,19 @@ import path from "path";
 import { PostgresStorage } from "./storage";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "../lib/auth";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 const client = new Anthropic({});
 
+// rename to chatStorage and PostgresChatStorage
 const history = new PostgresStorage();
 
-app.all("/api/auth/{*any}", toNodeHandler(auth));
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: "Too many login attempts, try again later" },
+});
 
 const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const session = await auth.api.getSession({
@@ -25,11 +31,24 @@ const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (_req, res) => res.locals.user.id,
+  message: { error: "Too many requests, slow down" },
+});
+
+app.all("/api/auth/{*any}", authLimiter, toNodeHandler(auth));
+
 app.use(express.json({ limit: "5mb" }));
 
-app.post("/chat", requireAuth, async (req, res) => {
+app.post("/chat", requireAuth, chatLimiter, async (req, res) => {
   const { id, chat } = req.body;
   if (!chat) return res.status(400).send("missing chat field");
+  if (chat.length > 10_000)
+    return res
+      .status(400)
+      .json({ error: "message too long (max 10,000 characters)" });
 
   // Create a new conversation if no id provided
   const userId = res.locals.user.id;
@@ -79,12 +98,16 @@ app.get("/chat/:id", requireAuth, async (req, res) => {
 });
 
 app.get("/rllm/example", requireAuth, async (_req, res) => {
-  const schemaPath = path.resolve(import.meta.dirname, "../../drizzle/schema.ts");
+  const schemaPath = path.resolve(
+    import.meta.dirname,
+    "../../drizzle/schema.ts",
+  );
   const content = await readFile(schemaPath, "utf-8");
 
   res.json({
     context: `=== drizzle/schema.ts ===\n${content}`,
-    question: "What tables exist and how are they related? Identify all foreign key relationships.",
+    question:
+      "What tables exist and how are they related? Identify all foreign key relationships.",
   });
 });
 
@@ -93,8 +116,7 @@ const RLLM_FIXTURE_PATH = path.resolve(
   "rllm-fixture.json",
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RecordedEvent = { delay: number; event: any };
+type RecordedEvent = { delay: number; event: any }; // no any types!!!
 
 async function replayEvents(res: Response) {
   const raw = await readFile(RLLM_FIXTURE_PATH, "utf-8");
@@ -115,7 +137,8 @@ async function replayEvents(res: Response) {
 }
 
 app.post("/rllm", requireAuth, async (req, res) => {
-  const isRecording = req.query.record === "true";
+  const isRecording =
+    req.query.record === "true" && process.env.NODE_ENV !== "production";
   const hasFixture = existsSync(RLLM_FIXTURE_PATH);
 
   res.setHeader("Content-Type", "text/event-stream");
