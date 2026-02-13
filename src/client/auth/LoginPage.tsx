@@ -132,7 +132,7 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="link"
-              className="text-sm text-muted-foreground"
+              className="text-sm text-card-foreground"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError("");

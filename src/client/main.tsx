@@ -8,6 +8,7 @@ import Layout from "./layout";
 import ChatView from "./ChatView";
 import LoginPage from "./auth/LoginPage";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import RllmDemo from "./RllmDemo";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <BrowserRouter>
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <Route element={<Layout />}>
             <Route path="/new" element={<ChatView />} />
             <Route path="/chat/:id" element={<ChatView />} />
+            <Route path="/rllm" element={<RllmDemo />} />
           </Route>
         </Route>
       </Routes>
