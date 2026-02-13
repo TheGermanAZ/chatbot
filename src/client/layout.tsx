@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { BrainCircuitIcon, LogOutIcon, MessageSquarePlusIcon } from "lucide-react";
@@ -28,10 +27,10 @@ export default function Layout() {
   }, [refreshChatList]);
   return (
     <>
-      <div className="flex h-screen">
+      <div className="flex h-screen min-w-0 overflow-hidden">
         {/* Sidebar */}
         <aside
-          className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg"
+          className="flex w-64 max-w-64 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg"
         >
           <div className="flex items-center justify-between p-4 pb-3">
             <h2 className="text-sm font-semibold text-sidebar-foreground/90">Chats</h2>
@@ -44,25 +43,25 @@ export default function Layout() {
             </Button>
           </div>
           <Separator />
-          <ScrollArea className="flex-1">
-            <div className="flex flex-col gap-0.5 p-2">
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex min-w-0 flex-col gap-0.5 p-2">
               {chats.map((chat) => (
                 <Button
                   key={chat.id}
                   onClick={() => navigate(`/chat/${chat.id}`)}
                   variant="ghost"
                   className={cn(
-                    "rounded-md px-3 py-2 text-left text-sm truncate",
+                    "w-full max-w-full overflow-hidden rounded-md px-3 py-2 text-left text-sm",
                     "hover:bg-sidebar-accent",
                     chat.id === activeChatId &&
                       "bg-sidebar-accent font-medium",
                   )}
                 >
-                  {chat.title}
+                  <span className="block truncate">{chat.title}</span>
                 </Button>
               ))}
             </div>
-          </ScrollArea>
+          </div>
           <Separator className="opacity-50" />
           <div className="flex flex-col gap-2 p-4 pt-3">
             <Button
@@ -88,7 +87,7 @@ export default function Layout() {
         </aside>
 
         {/* Main content - child route renders here */}
-        <main className="flex flex-1 flex-col bg-background">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
           <Outlet context={{ refreshChatList }} />
         </main>
       </div>

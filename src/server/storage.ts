@@ -3,6 +3,7 @@ import { db } from "./db";
 import { conversations, messages } from "./db/schema";
 import { and, eq } from "drizzle-orm";
 
+// this is a ChatService
 interface ChatStorage {
   createConversation(title: string, userId: string): Promise<string>;
   getConversation(
