@@ -15,11 +15,12 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { Button } from "@/components/ui/button";
 import { InputGroupAddon } from "@/components/ui/input-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Anthropic from "@anthropic-ai/sdk";
-import { BotIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BotIcon, FlaskConicalIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useParams } from "react-router";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -30,7 +31,7 @@ export default function ChatView() {
   const navigate = useNavigate();
   const { refreshChatList } = useOutletContext<LayoutContext>();
 
-  const [chatId, setChatId] = useState<string | undefined>(id);
+  const chatIdRef = useRef(id);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +39,10 @@ export default function ChatView() {
     if (!id) return;
 
     const getChat = async () => {
+      // consider building a hook called useFetch or useServerData or something, which has built in caching and refetching and loading indicators so you don't need to
+      // do this manually inside of your ChatView
+      // like, for instance, look into useSWR if you don't know what I mean.
+      // try to build useFetch yourself before using react query.
       const response = await fetch(`/chat/${id}`);
 
       if (!response.ok) {
@@ -66,7 +71,7 @@ export default function ChatView() {
       const response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: chatId, chat: text }),
+        body: JSON.stringify({ id: chatIdRef.current, chat: text }),
       });
 
       if (!response.ok) {
@@ -75,9 +80,12 @@ export default function ChatView() {
       }
 
       const data = await response.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
-      if (!chatId) {
-        setChatId(data.id);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.text },
+      ]);
+      if (!chatIdRef.current) {
+        chatIdRef.current = data.id;
         await refreshChatList();
         navigate(`/chat/${data.id}`, { replace: true });
       }
@@ -122,7 +130,22 @@ export default function ChatView() {
           <ConversationScrollButton variant="default" />
         </Conversation>
 
-        <div className="p-4">
+        <div className="flex flex-col gap-2 p-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2 self-end"
+            disabled={loading}
+            onClick={async () => {
+              const res = await fetch("/rllm/example");
+              if (!res.ok) return;
+              const data = await res.json();
+              sendMessage(`${data.context}\n\n${data.question}`);
+            }}
+          >
+            <FlaskConicalIcon className="size-3.5" />
+            Load example
+          </Button>
           <PromptInput onSubmit={({ text }) => sendMessage(text)}>
             <PromptInputTextarea disabled={loading} />
             <InputGroupAddon align="inline-end">
