@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 type EventEntry =
   | { type: "iteration_start"; iteration: number }
@@ -35,12 +35,6 @@ export default function RllmDemo() {
   const [question, setQuestion] = useState("");
   const [events, setEvents] = useState<EventEntry[]>([]);
   const [status, setStatus] = useState<Status>("idle");
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   const handleAnalyze = async () => {
     if (!context.trim() || !question.trim()) return;
 
@@ -81,7 +75,6 @@ export default function RllmDemo() {
             setEvents((prev) => [...prev, event]);
             if (event.type === "result") setStatus("done");
             if (event.type === "error") setStatus("error");
-            setTimeout(scrollToBottom, 50);
           } catch {
             // skip malformed events
           }
@@ -166,7 +159,6 @@ export default function RllmDemo() {
           <EventBlock key={i} event={event} />
         ))}
 
-        <div ref={logEndRef} />
 
         {resultEvent && (
           <div className="mt-2 flex flex-wrap gap-4 rounded-md border border-primary/20 bg-muted p-3 text-xs">
